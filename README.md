@@ -27,7 +27,7 @@
 > 本工具作者与贡献者**不对**使用其输出内容而产生的任何人身伤害、财产损失、
 > 法律纠纷承担责任。完整声明见 [DISCLAIMER.md](DISCLAIMER.md)。
 
-一个面向 **北京大学学生徒步越野协会** 及广大徒步爱好者的Agent Skill。输入模糊需求，自动完成路线推荐、全网深度调研、生成调研报告与正式活动文件（领队计划、备案表、风险预案）。
+一个面向 **北京大学学生徒步越野协会** 及广大徒步爱好者的 Agent Skill。输入模糊需求，自动完成路线推荐、全网深度调研、单路线路网分析，以及正式活动文件（领队计划、备案表、风险预案）的生成。
 
 ## 快速开始
 
@@ -110,6 +110,7 @@ rednote-mcp init
 | **A：完整流程** | "调研北灵山徒步路线" | 调研报告 + 领队计划 + 备案表 + 风险预案 |
 | **B：仅调研** | "只帮我查一下XX路线的路况" | 调研报告 (.md) |
 | **C：仅生成文件** | "根据这份调研报告生成领队计划" | .docx + .xlsx |
+| **D：单路线路网** | "研究北灵—黄草梁主线、下撤线和截止点" | 路网报告 (.md) + 路网数据 (.json) |
 
 ## 交付物
 
@@ -119,6 +120,7 @@ rednote-mcp init
 |------|------|------|
 | 徒步线路调研报告 | `.md` | 14 章全面调研，含轨迹、路况、天气、交通、政策、风险、参考链接 |
 | JSON 数据文件 | `.json` | 结构化路线数据，供脚本生成正式文件 |
+| Route Network Research | `.md` + `.json` | 节点—路段网络、GPX、下撤线、车辆点、决策点、截止点与证据状态 |
 | 领队计划 | `.docx` | 活动介绍、路线信息、组织事宜、物资准备、报名事项 |
 | 活动备案表 | `.docx` | 路线简介至装备与注意事项五节主干内容 |
 | 风险预案 | `.xlsx` | 标准风险矩阵 + 色标图例 |
@@ -161,6 +163,7 @@ Skill 内置北大徒协标准路线分级算法，自动计算强度并评定�
 | P0 | 大交通时效 | 班车/火车/航班最新时刻 |
 | P1 | 天气 | Windy、莉景天气 |
 | P1 | 交通可达性 | 起点停车、公交、大巴可达 |
+| P1 | 路网决策 | 主线/下撤线、关键岔口、车辆点、Decision/Cut-off |
 | P1 | City walk 专项 | 免费讲解、公共演出、学生票 |
 | P2 | 补给与设施 | 水源、商店、信号覆盖 |
 
@@ -179,18 +182,23 @@ Skill 内置北大徒协标准路线分级算法，自动计算强度并评定�
 │   ├── leader-handbook-full.md           # 领队手册完整版
 │   ├── report-template.md                # 调研报告模板
 │   ├── research-guide.md                 # 搜索策略指南
+│   ├── route-network-research.md          # 单路线路网调研与验证规则
+│   ├── route-network-template.md          # 路网报告模板
 │   └── template-specs.md                 # 交付文件字段规格
 ├── scripts/
 │   ├── data_model.py                     # 统一数据模型
+│   ├── route_network.py                   # 时间、截止点和路网校验
 │   ├── docx_utils.py                     # Word 文档工具
 │   ├── generate_leader_plan.py           # 领队计划生成
 │   ├── generate_registration_form.py     # 备案表生成
 │   └── generate_risk_plan.py             # 风险预案生成
-└── assets/
-    ├── 徒协logo.png                      # 协会 Logo
-    ├── 徒协logo横版.png                  # 协会 Logo（横版）
-    ├── 路线分级1.png                     # 分级标准图
-    └── 路线分级2.png                     # 分级调整规则图
+├── assets/
+│   ├── 徒协logo.png                      # 协会 Logo
+│   ├── 徒协logo横版.png                  # 协会 Logo（横版）
+│   ├── 路线分级1.png                     # 分级标准图
+│   └── 路线分级2.png                     # 分级调整规则图
+└── tests/
+    └── test_route_network.py              # 路网模型与计算测试
 ```
 
 ## 技术架构
@@ -201,9 +209,12 @@ Skill 内置北大徒协标准路线分级算法，自动计算强度并评定�
     → Phase 1: 需求澄清（对话）
     → Phase 2: 路线推荐（WebSearch × N）
     → Phase 3: 深度调研（WebSearch × N）→ 产出调研报告 .md + JSON
-    → Phase 4: 预览交互（对话确认）
-    → Phase 5: Python 脚本 → .docx + .xlsx
+    → Phase 4: 单路线路网分析 → 路网 .json + 审阅 .md
+    → Phase 5: 预览交互（对话确认）
+    → Phase 6: Python 脚本 → .docx + .xlsx
 ```
+
+路网分析使用 JSON 作为唯一结构化数据源，Markdown 是人工审阅视图。整线、节点、路段和车辆点分别记录 `Candidate / Desk Verified / Field Verified` 证据成熟度，以及 `Open / Restricted / Closed / Unknown` 当前开放状态。网络资料不能自动生成 `Field Verified`。
 
 ## 信息源
 

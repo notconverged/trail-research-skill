@@ -4,10 +4,9 @@ description: |
   徒步线路调研助手。当用户说"帮我调研XX徒步路线"、"调研XX线路"、"推荐北京周边中级强度一日徒步"、
   "做XX线路的领队计划和备案表"、"帮我找一条适合新手的徒步路线"时使用。
 
-  自动完成：需求澄清 -> 路线推荐 -> 深度调研（产出全面Markdown调研报告） -> 预览确认 -> 生成正式文件（领队计划.docx + 备案表.docx + 风险预案.xlsx）。
+  自动完成：需求澄清 → 路线推荐 → 深度调研 → 单路线路网分析（主线/下撤线/决策点/截止点） → 预览确认 → 生成正式文件（领队计划.docx + 备案表.docx + 风险预案.xlsx）。
 
   支持通用场景，也可按北大徒协模板格式输出。有不确定的信息时主动向用户提问，不自行假设。
-context: fork
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUserQuestion
 ---
 
@@ -23,29 +22,34 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 - **活动备案表** (.docx) — 社团活动审批备案表（仅包含一至五节主干内容，不要求严格格式）
 - **风险预案** (.xlsx) — 风险分析矩阵表格
 - **JSON 数据文件** (.json) — 结构化路线数据，供脚本生成 .docx/.xlsx 使用
+- **单路线路网报告** (.md + .json) — 节点—路段网络、GPX 来源、下撤路线、车辆点、决策点、截止点与证据状态
 
 **输出目录约定：**
 所有交付文件（.md / .json / .docx / .xlsx）统一保存到用户当前工作目录下的 `{路线或活动名称}/` 文件夹中。例如：`./北灵山一日徒步/`。Phase 3 开始时即创建该文件夹。
 
-所有 .docx/.xlsx 文件通过 `scripts/` 目录下的 Python 脚本生成，共享同一个 JSON 数据文件。调研报告由 Claude 在 Phase 3 直接撰写输出。
+所有 .docx/.xlsx 文件通过 `scripts/` 目录下的 Python 脚本生成，共享同一个 JSON 数据文件。调研报告由 Agent 在 Phase 3 直接撰写输出。路网分析以 JSON 为唯一结构化数据源，Markdown 是供人工审阅的视图。
 
-## 三种运行模式
+## 四种运行模式
 
 根据用户输入自动判断模式：
 
 ### 模式 A：完整流程（默认）
 
-当用户说"调研XX路线""帮我推荐一条路线"等，执行完整五阶段流程。
+当用户说"调研XX路线""帮我推荐一条路线"等，执行完整六阶段流程。户外徒步路线执行 Phase 4 路网分析；City walk 默认跳过 Phase 4。
 
 ### 模式 B：仅调研
 
-当用户说"只调研XX路线""帮我查一下XX路线的路况""做一份XX路线的调研报告"等，只执行 Phase 1-3，产出 .md 调研报告，不生成 .docx/.xlsx。
+当用户说"只调研XX路线""帮我查一下XX路线的路况""做一份XX路线的调研报告"等，只执行 Phase 1-3，产出 .md 调研报告，不生成 .docx/.xlsx。用户同时要求主线、下撤线、关键岔口、车辆点或截止点时改用模式 D。
 
 ### 模式 C：仅生成文件
 
 当用户说"根据这份调研报告生成领队计划""把已有的JSON数据生成文件"等，跳过调研阶段，直接从已有数据（或用户提供的信息）生成 .docx/.xlsx。此时优先读取已有的 `_shared/` 下的 JSON 数据或用户指定的数据文件。
 
-**判断原则：** 如果不确定用户意图，默认使用模式 A（完整流程），并在 Phase 1 时向用户确认。
+### 模式 D：单路线 Route Network Research
+
+当用户说"只研究这一条路线的路网""分析主线和下撤线""建立决策点和截止点""核实关键岔口和车辆点"等，执行必要的 Phase 1、Phase 3 信息搜集和完整 Phase 4。产出独立的 `{路线名称}_route_network.json` 与 `{路线名称}_route_network_research.md`，不生成领队计划、备案表或风险预案，也不覆盖已有综合调研报告。
+
+**判断原则：** 如果不确定用户意图，默认使用模式 A（完整流程），并在 Phase 1 时确认范围。明确要求路线网络、Decision Point 或 Cut-off Point 时优先模式 D。
 
 ---
 
@@ -116,11 +120,11 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 
 示例：`./北灵山一日徒步/` 或 `./西四胡同CityWalk/`
 
-所有 Phase 3-5 产出的文件（.md / .json / .docx / .xlsx）均保存到此文件夹中。
+所有 Phase 3-6 产出的文件（.md / .json / .docx / .xlsx）均保存到此文件夹中。
 
 ### 3.1 核心产出：徒步线路调研报告
 
-**Phase 3 结束时，必须产出一份完整的 Markdown 调研报告并保存为文件。** 报告直接由 Claude 撰写，使用 Write 工具保存到上述文件夹。
+**Phase 3 结束时，必须产出一份完整的 Markdown 调研报告并保存为文件。** 报告直接由 Agent 撰写，使用写文件工具保存到上述文件夹。
 
 报告命名格式：`{路线名称}_徒步线路调研报告.md`
 
@@ -265,16 +269,72 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 
 ---
 
-## Phase 4：预览与交互
+## Phase 4：单路线路网分析
 
-### 4.1 展示调研报告摘要
+户外徒步完整流程和模式 D 执行本阶段。City walk 默认跳过。详细方法必须读取 `references/route-network-research.md`，报告格式使用 `references/route-network-template.md`。
+
+### 4.1 建立候选网络
+
+以节点和有方向的路段表达：
+
+- 主线路段；
+- 所有有证据支持的候选下撤线路；
+- 起终点、营地、水源、风险点和关键岔口；
+- 车辆可达点及其目标车型限制；
+- GPX/两步路/六只脚轨迹与适用路段。
+
+不要把一条热门轨迹直接视为标准线路。先建立候选网络，再逐段验证坐标、方向、里程、爬升、路况和通行状态。
+
+### 4.2 分开保存验证成熟度与开放状态
+
+整线、节点、路段和车辆点分别保存：
+
+- `verification_status`：`Candidate` / `Desk Verified` / `Field Verified`
+- `availability_status`：`Open` / `Restricted` / `Closed` / `Unknown`
+
+网络游记、小红书实拍、商业队记录或“近期有人走过”最多支持 `Desk Verified`。`Field Verified` 只能由用户或组织方依据人工踏勘记录明确赋值，且必须有踏勘人、日期及自录轨迹或带位置的现场证据。Agent 和脚本不得自动生成或推断 `Field Verified`。
+
+### 4.3 时间区间、Decision Point 与 Cut-off Point
+
+以普通队员 2.5 km/h 为基准，结合爬升、技术性下降、路况、重装、队伍素质和证据不确定性计算路段时间。尽量采集 3-5 条方向和季节可比的两步路/GPX 记录，使用运动耗时 P50-P85，不使用最快记录。只有整线总时长时不得包装成精确路段时间。
+
+Decision Point 必须位于有真实分支的节点。Cut-off Point 按以下关系倒推：
+
+```text
+截止时间 = 安全到达时限 - 剩余路段 P85 - 固定缓冲 - 异常缓冲
+```
+
+不得输出缺少安全到达时限、P85 或缓冲依据的固定截止时刻。用于正式执行的唯一主要下撤方案至少达到 `Desk Verified`，否则明确标为不能作为唯一安全保障。
+
+### 4.4 图片与证据
+
+为关键岔口、营地、风险点和车辆点建立图片索引，保存来源、拍摄/检索日期、方向、可见地物和复用状态。小红书等第三方图片默认只链接原帖，不下载或复制。网络图片不能提升为 `Field Verified`。
+
+每项路线判断都引用证据 ID，并记录来源形成日期和检索日期。无法交叉验证的内容保留为 `Candidate` 或 `Unknown`，进入待人工核实清单。
+
+### 4.5 产出与校验
+
+在活动输出文件夹中新建，不覆盖综合报告：
+
+```text
+{路线名称}_route_network.json
+{路线名称}_route_network_research.md
+```
+
+JSON 按 `scripts/data_model.py` 的 `RouteNetwork` 结构保存。用 `scripts/route_network.py` 计算时间和截止点，并运行结构校验。Markdown 从同一 JSON 展开，至少呈现路网总览、对象状态、主线、下撤线、车辆点、GPX 时间样本、Decision/Cut-off、图片、证据矩阵和待核实清单。
+
+---
+
+## Phase 5：预览与交互
+
+### 5.1 展示调研报告摘要
 
 向用户展示调研报告的关键发现摘要，而非完整报告。引导用户关注：
 - 路线基本信息确认
 - 主要风险点
 - 需要用户提供的信息
 
-### 4.2 缺失信息标注
+### 5.2 缺失信息标注
 
 在预览中明确标注 `[待确认]` 的信息：
 - 准确的领队名单和 bio
@@ -282,7 +342,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 - 最终参与人数
 - 预算细节
 
-### 4.3 交互确认
+### 5.3 交互确认
 
 逐一请用户确认或提供以下内容（使用自然对话，不要一次性列出）：
 
@@ -294,22 +354,22 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 6. **路线调整** — 是否需要调整路线、增减路段、修改难度评估
 7. **装备调整** — 是否需要增加特殊装备
 
-### 4.4 风险预案确认
+### 5.4 风险预案确认
 
 与用户逐一确认风险级别评定是否合理，特别关注：
 - 陡坡滑坠风险级别（需根据实际路况判定）
 - 天气相关风险（根据实际天气预报调整）
 - 是否需要增加额外风险行（如高原反应、雷雨天气等）
 
-## Phase 5：文件生成
+## Phase 6：文件生成
 
-### 5.1 构建数据
+### 6.1 构建数据
 
 根据确认后的所有信息，构建完整的 JSON 数据文件。数据结构参考 `scripts/data_model.py` 中的 `TrailResearchData`。
 
 将 JSON 保存到活动输出文件夹：`{用户当前目录}/{路线或活动名称}/trail_research_data.json`
 
-### 5.2 生成交付文件
+### 6.2 生成交付文件
 
 **前置：Python 依赖自检（每次会话首次运行脚本前执行一次）**
 
@@ -365,7 +425,7 @@ python "$SKILL_DIR/generate_registration_form.py" "$DATA_FILE" "$OUTPUT_DIR/{活
 
 **脚本路径：** skill 安装位置因 agent 而异，上面的自动检测脚本会依次尝试 Claude Code 用户级/项目级、Cursor、Hermes/通用 agent 等常见路径，找到第一个有效路径后使用。
 
-### 5.3 交付
+### 6.3 交付
 
 向用户报告生成结果，所有文件位于同一文件夹：
 - **输出文件夹** — `{用户当前目录}/{路线或活动名称}/`
@@ -379,7 +439,7 @@ python "$SKILL_DIR/generate_registration_form.py" "$DATA_FILE" "$OUTPUT_DIR/{活
   - 配图（路线图、高程图、风景照）
   - 审批签字
 
-### 5.4 迭代
+### 6.4 迭代
 
 询问用户是否需要调整任何文件的内容。如需修改：
 1. 更新调研报告 .md（直接编辑活动文件夹中的文件）
@@ -410,6 +470,6 @@ python "$SKILL_DIR/generate_registration_form.py" "$DATA_FILE" "$OUTPUT_DIR/{活
 - **关注风险：** 优先搜索吐槽贴（"劝退""排雷""提醒"），了解真实风险
 - **尊重版权：** 配图标注来源，轨迹注明出处
 - **天气用 Windy/莉景：** 不要用系统天气软件查山区天气
-- **调研报告是基础：** Phase 3 的 Markdown 调研报告是所有后续文件的数据基础，务必详尽
+- **结构化数据是唯一数据源：** 调研 Markdown 用于审阅；路网状态、时间和证据以 JSON 为准，后续报告与正式文件不得维护相互冲突的数据
 - **输出统一管理：** 所有产出文件（.md / .json / .docx / .xlsx）必须放在同一活动文件夹中
 - **坐标可搜索：** 起终点坐标必须能在地图应用中直接搜索定位，不能只写模糊的地名

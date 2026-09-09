@@ -1,7 +1,7 @@
 # {路线名称} 徒步线路调研报告
 
 > 调研日期：{日期}
-> 调研人：Claude (trail-research skill)
+> 调研人：Agent (trail-research skill)
 
 ---
 
