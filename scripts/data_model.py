@@ -36,6 +36,202 @@ class CoordinateInfo:
 
 
 @dataclass
+class EvidenceReference:
+    evidence_id: str = ""
+    title: str = ""
+    source_type: str = ""       # official / gpx / rednote / field / other
+    platform: str = ""
+    url: str = ""
+    published_at: str = ""
+    retrieved_at: str = ""
+    supports: list[str] = field(default_factory=list)
+    notes: str = ""
+
+
+@dataclass
+class VerificationState:
+    verification_status: str = "Candidate"  # Candidate / Desk Verified / Field Verified
+    availability_status: str = "Unknown"    # Open / Restricted / Closed / Unknown
+    verified_at: str = ""
+    verified_by: str = ""
+    evidence_refs: list[str] = field(default_factory=list)
+    unresolved_items: list[str] = field(default_factory=list)
+
+
+@dataclass
+class TrackSource:
+    track_id: str = ""
+    platform: str = ""
+    url: str = ""
+    uploaded_at: str = ""
+    recorded_at: str = ""
+    retrieved_at: str = ""
+    direction: str = ""
+    distance_km: float = 0.0
+    elevation_gain_m: int = 0
+    elevation_loss_m: int = 0
+    moving_time_hours: float = 0.0
+    elapsed_time_hours: float = 0.0
+    gpx_available: bool = False
+    gpx_checksum: str = ""
+    applies_to_edge_ids: list[str] = field(default_factory=list)
+    notes: str = ""
+
+
+@dataclass
+class TrackSegmentObservation:
+    observation_id: str = ""
+    track_id: str = ""
+    edge_id: str = ""
+    moving_time_hours: float = 0.0
+    split_method: str = ""       # timestamped-gpx / platform-segment / whole-route
+    comparable: bool = True
+    exclusion_reason: str = ""
+    notes: str = ""
+
+
+@dataclass
+class EdgeDifficulty:
+    trail_grade: int = 0
+    terrain_types: list[str] = field(default_factory=list)
+    route_finding: str = ""     # low / medium / high
+    technical_descent_m: int = 0
+    terrain_multiplier: float = 1.0
+    notes: str = ""
+
+
+@dataclass
+class TimeEstimate:
+    baseline_hours: float = 0.0
+    model_lower_hours: float = 0.0
+    model_upper_hours: float = 0.0
+    observed_p50_hours: float = 0.0
+    observed_p85_hours: float = 0.0
+    planned_lower_hours: float = 0.0
+    planned_upper_hours: float = 0.0
+    base_speed_kmh: float = 2.5
+    ascent_rate_m_per_hour: float = 450.0
+    descent_rate_m_per_hour: float = 700.0
+    pack_multiplier: float = 1.0
+    team_multiplier: float = 1.0
+    uncertainty_multiplier: float = 1.0
+    methodology_version: str = "route-time-v1"
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class RouteNode:
+    node_id: str = ""
+    name: str = ""
+    node_types: list[str] = field(default_factory=list)
+    coordinate: CoordinateInfo = field(default_factory=CoordinateInfo)
+    field_identification: str = ""
+    state: VerificationState = field(default_factory=VerificationState)
+    image_refs: list[str] = field(default_factory=list)
+
+
+@dataclass
+class RouteEdge:
+    edge_id: str = ""
+    from_node: str = ""
+    to_node: str = ""
+    name: str = ""
+    route_role: str = "main"    # main / bailout / alternate / access
+    directionality: str = "both"
+    distance_km: float = 0.0
+    elevation_gain_m: int = 0
+    elevation_loss_m: int = 0
+    difficulty: EdgeDifficulty = field(default_factory=EdgeDifficulty)
+    time_estimate: TimeEstimate = field(default_factory=TimeEstimate)
+    state: VerificationState = field(default_factory=VerificationState)
+    track_source_ids: list[str] = field(default_factory=list)
+
+
+@dataclass
+class VehicleAccessPoint:
+    access_id: str = ""
+    node_id: str = ""
+    road_name: str = ""
+    road_surface: str = ""
+    road_width: str = ""
+    vehicle_limit: str = ""
+    turnaround: str = ""
+    parking_capacity: str = ""
+    navigation_keyword: str = ""
+    last_vehicle_check_at: str = ""
+    state: VerificationState = field(default_factory=VerificationState)
+
+
+@dataclass
+class DecisionPoint:
+    decision_id: str = ""
+    node_id: str = ""
+    main_edge_ids: list[str] = field(default_factory=list)
+    bailout_edge_ids: list[str] = field(default_factory=list)
+    trigger_conditions: list[str] = field(default_factory=list)
+    decision_action: str = ""
+    state: VerificationState = field(default_factory=VerificationState)
+    notes: str = ""
+
+
+@dataclass
+class CutoffPoint:
+    cutoff_id: str = ""
+    decision_point_id: str = ""
+    safe_arrival_deadline: str = ""
+    cutoff_time: str = ""
+    remaining_p85_hours: float = 0.0
+    fixed_buffer_minutes: int = 0
+    contingency_buffer_minutes: int = 0
+    calculation_inputs: list[str] = field(default_factory=list)
+    action_after_cutoff: str = ""
+    state: VerificationState = field(default_factory=VerificationState)
+
+
+@dataclass
+class ImageEvidence:
+    image_id: str = ""
+    node_id: str = ""
+    source_url: str = ""
+    source_platform: str = ""
+    author: str = ""
+    captured_at: str = ""
+    retrieved_at: str = ""
+    viewpoint: str = ""
+    visible_feature: str = ""
+    reuse_status: str = "link-only"  # link-only / permitted / own-field-photo
+    evidence_ref: str = ""
+
+
+@dataclass
+class TeamProfile:
+    name: str = "普通队伍"
+    base_speed_kmh: float = 2.5
+    pack_multiplier: float = 1.0
+    team_multiplier: float = 1.0
+    notes: str = ""
+
+
+@dataclass
+class RouteNetwork:
+    schema_version: str = "1.0"
+    network_id: str = ""
+    name: str = ""
+    state: VerificationState = field(default_factory=VerificationState)
+    team_profile: TeamProfile = field(default_factory=TeamProfile)
+    nodes: list[RouteNode] = field(default_factory=list)
+    edges: list[RouteEdge] = field(default_factory=list)
+    track_sources: list[TrackSource] = field(default_factory=list)
+    track_segment_observations: list[TrackSegmentObservation] = field(default_factory=list)
+    decision_points: list[DecisionPoint] = field(default_factory=list)
+    cutoff_points: list[CutoffPoint] = field(default_factory=list)
+    vehicle_access_points: list[VehicleAccessPoint] = field(default_factory=list)
+    image_evidence: list[ImageEvidence] = field(default_factory=list)
+    evidence: list[EvidenceReference] = field(default_factory=list)
+    unresolved_items: list[str] = field(default_factory=list)
+
+
+@dataclass
 class RouteInfo:
     name: str = ""
     location: str = ""
@@ -165,6 +361,7 @@ class PublicPerformance:
 class TrailResearchData:
     activity: ActivityInfo = field(default_factory=ActivityInfo)
     route: RouteInfo = field(default_factory=RouteInfo)
+    route_network: RouteNetwork = field(default_factory=RouteNetwork)
     organization: OrganizationInfo = field(default_factory=OrganizationInfo)
     policy: PolicyInfo = field(default_factory=PolicyInfo)
     risks: list[RiskItem] = field(default_factory=list)
@@ -241,6 +438,55 @@ class TrailResearchData:
         route.end_point = _dict_to_dataclass(CoordinateInfo, raw.get("route", {}).get("end_point", {}))
         route.segments = [_dict_to_dataclass(RouteSegment, s) for s in raw.get("route", {}).get("segments", [])]
 
+        network_raw = raw.get("route_network", {})
+        route_network = _dict_to_dataclass(RouteNetwork, network_raw)
+        route_network.state = _dict_to_dataclass(VerificationState, network_raw.get("state", {}))
+        route_network.team_profile = _dict_to_dataclass(TeamProfile, network_raw.get("team_profile", {}))
+        route_network.nodes = []
+        for node_raw in network_raw.get("nodes", []):
+            node = _dict_to_dataclass(RouteNode, node_raw)
+            node.coordinate = _dict_to_dataclass(CoordinateInfo, node_raw.get("coordinate", {}))
+            node.state = _dict_to_dataclass(VerificationState, node_raw.get("state", {}))
+            route_network.nodes.append(node)
+        route_network.edges = []
+        for edge_raw in network_raw.get("edges", []):
+            edge = _dict_to_dataclass(RouteEdge, edge_raw)
+            edge.difficulty = _dict_to_dataclass(EdgeDifficulty, edge_raw.get("difficulty", {}))
+            edge.time_estimate = _dict_to_dataclass(TimeEstimate, edge_raw.get("time_estimate", {}))
+            edge.state = _dict_to_dataclass(VerificationState, edge_raw.get("state", {}))
+            route_network.edges.append(edge)
+        route_network.track_sources = [
+            _dict_to_dataclass(TrackSource, item)
+            for item in network_raw.get("track_sources", [])
+        ]
+        route_network.track_segment_observations = [
+            _dict_to_dataclass(TrackSegmentObservation, item)
+            for item in network_raw.get("track_segment_observations", [])
+        ]
+        route_network.decision_points = []
+        for decision_raw in network_raw.get("decision_points", []):
+            decision = _dict_to_dataclass(DecisionPoint, decision_raw)
+            decision.state = _dict_to_dataclass(VerificationState, decision_raw.get("state", {}))
+            route_network.decision_points.append(decision)
+        route_network.cutoff_points = []
+        for cutoff_raw in network_raw.get("cutoff_points", []):
+            cutoff = _dict_to_dataclass(CutoffPoint, cutoff_raw)
+            cutoff.state = _dict_to_dataclass(VerificationState, cutoff_raw.get("state", {}))
+            route_network.cutoff_points.append(cutoff)
+        route_network.vehicle_access_points = []
+        for access_raw in network_raw.get("vehicle_access_points", []):
+            access = _dict_to_dataclass(VehicleAccessPoint, access_raw)
+            access.state = _dict_to_dataclass(VerificationState, access_raw.get("state", {}))
+            route_network.vehicle_access_points.append(access)
+        route_network.image_evidence = [
+            _dict_to_dataclass(ImageEvidence, item)
+            for item in network_raw.get("image_evidence", [])
+        ]
+        route_network.evidence = [
+            _dict_to_dataclass(EvidenceReference, item)
+            for item in network_raw.get("evidence", [])
+        ]
+
         org_raw = raw.get("organization", {})
         org = _dict_to_dataclass(OrganizationInfo, org_raw)
         org.leaders = [_dict_to_dataclass(LeaderInfo, l) for l in org_raw.get("leaders", [])]
@@ -258,6 +504,7 @@ class TrailResearchData:
         return cls(
             activity=activity,
             route=route,
+            route_network=route_network,
             organization=org,
             policy=policy,
             risks=risks,
