@@ -74,17 +74,6 @@ class TrackSource:
     elapsed_time_hours: float = 0.0
     gpx_available: bool = False
     gpx_checksum: str = ""
-    local_path: str = ""
-    source_format: str = ""       # gpx / kml / kmz / rendered-page-geometry / metadata-only
-    source_tier: str = ""         # original_export / rendered_page_geometry / metadata_only
-    geometry_provenance: str = ""
-    coordinate_system: str = ""   # WGS84 / GCJ-02 / BD-09 / unknown
-    original_point_count: int = 0
-    parsed_point_count: int = 0
-    waypoint_count: int = 0
-    source_file_sha256: str = ""
-    acquisition_method: str = ""
-    license_or_terms: str = ""
     applies_to_edge_ids: list[str] = field(default_factory=list)
     notes: str = ""
 
