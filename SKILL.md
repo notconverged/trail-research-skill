@@ -22,7 +22,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 - **活动备案表** (.docx) — 社团活动审批备案表（仅包含一至五节主干内容，不要求严格格式）
 - **风险预案** (.xlsx) — 风险分析矩阵表格
 - **JSON 数据文件** (.json) — 结构化路线数据，供脚本生成 .docx/.xlsx 使用
-- **单路线路网报告** (.md + .json) — 节点—路段网络、GPX 来源、下撤路线、车辆点、决策点、截止点与证据状态
+- **单路线路网报告与轨迹叠加层** (.md + .json + .gpx) — 节点—路段网络、原始轨迹清单、多来源 GPX 叠加、下撤路线、车辆点、决策点、截止点与证据状态
 
 **输出目录约定：**
 所有交付文件（.md / .json / .docx / .xlsx）统一保存到用户当前工作目录下的 `{路线或活动名称}/` 文件夹中。例如：`./北灵山一日徒步/`。Phase 3 开始时即创建该文件夹。
@@ -273,7 +273,25 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 
 户外徒步完整流程和模式 D 执行本阶段。City walk 默认跳过。详细方法必须读取 `references/route-network-research.md`，报告格式使用 `references/route-network-template.md`。
 
-### 4.1 建立候选网络
+### 4.1 获取并登记原始轨迹资料
+
+在画候选网络前，先建立 `{路线名称}_track_manifest.json`，并把取得的原文件保存到 `{活动目录}/source_tracks/`。按以下等级登记，不得混写：
+
+1. `original_export`：从平台或记录者取得的 GPX/KML/KMZ 原文件；保存文件路径、SHA-256、坐标系、点数、标注点数和取得方法。
+2. `rendered_page_geometry`：从公开轨迹页面中直接解析的地图几何；仅作有损预览，状态保持 `Candidate`，不得称为“原始 GPX”。
+3. `metadata_only`：只有里程、爬升、耗时、截图或链接，没有可解析几何；不得写入 GPX 轨迹段。
+
+优先取得带时间戳和标注点的 KML/KMZ/GPX。两步路导出时优先同时保留 KML 与 GPX；KML 通常更利于保留标注与时间。遇到登录、验证码、下载权限或 WAF 时，记录阻断原因并把“人工下载原文件”列为待核实事项，不规避平台访问控制，不用截图描线冒充轨迹。
+
+执行 `scripts/gpx_network.py` 解析 GPX 1.0/1.1、KML/KMZ（Point、LineString、gx:Track）或已登记的公开页面几何。仅允许明确为 WGS84 的几何进入输出；GCJ-02、BD-09 或未知坐标必须先有可审计的转换记录。
+
+### 4.2 生成多来源路网叠加 GPX
+
+把每个来源保持为独立 `<trk>`，保留原有 `<trkseg>`，不得用直线连接不同来源或自动生成“共识主线”。将各来源全部标注点叠加为 `<wpt>`；空间近似重复只添加 `dedupe_group`，默认不删除。轨迹和标注点都写入来源 ID、URL、SHA-256、来源等级、几何出处、坐标系和验证状态。
+
+同时生成 `{路线名称}_gpx_qc.json`，至少核查来源数、轨迹/分段/点数、标注点数、包围盒、计算里程、未过滤累计升降、缺失高程/时间、超过 2 km 的跳点、重复标注组及与平台报告里程的差异。叠加 GPX 是研究预览层，不等于已验证路线，也不能自动把任何对象升级为 `Desk Verified` 或 `Field Verified`。
+
+### 4.3 建立候选网络
 
 以节点和有方向的路段表达：
 
@@ -285,7 +303,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 
 不要把一条热门轨迹直接视为标准线路。先建立候选网络，再逐段验证坐标、方向、里程、爬升、路况和通行状态。
 
-### 4.2 分开保存验证成熟度与开放状态
+### 4.4 分开保存验证成熟度与开放状态
 
 整线、节点、路段和车辆点分别保存：
 
@@ -294,7 +312,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 
 网络游记、小红书实拍、商业队记录或“近期有人走过”最多支持 `Desk Verified`。`Field Verified` 只能由用户或组织方依据人工踏勘记录明确赋值，且必须有踏勘人、日期及自录轨迹或带位置的现场证据。Agent 和脚本不得自动生成或推断 `Field Verified`。
 
-### 4.3 时间区间、Decision Point 与 Cut-off Point
+### 4.5 时间区间、Decision Point 与 Cut-off Point
 
 以普通队员 2.5 km/h 为基准，结合爬升、技术性下降、路况、重装、队伍素质和证据不确定性计算路段时间。尽量采集 3-5 条方向和季节可比的两步路/GPX 记录，使用运动耗时 P50-P85，不使用最快记录。只有整线总时长时不得包装成精确路段时间。
 
@@ -306,22 +324,25 @@ Decision Point 必须位于有真实分支的节点。Cut-off Point 按以下关
 
 不得输出缺少安全到达时限、P85 或缓冲依据的固定截止时刻。用于正式执行的唯一主要下撤方案至少达到 `Desk Verified`，否则明确标为不能作为唯一安全保障。
 
-### 4.4 图片与证据
+### 4.6 图片与证据
 
 为关键岔口、营地、风险点和车辆点建立图片索引，保存来源、拍摄/检索日期、方向、可见地物和复用状态。小红书等第三方图片默认只链接原帖，不下载或复制。网络图片不能提升为 `Field Verified`。
 
 每项路线判断都引用证据 ID，并记录来源形成日期和检索日期。无法交叉验证的内容保留为 `Candidate` 或 `Unknown`，进入待人工核实清单。
 
-### 4.5 产出与校验
+### 4.7 产出与校验
 
 在活动输出文件夹中新建，不覆盖综合报告：
 
 ```text
 {路线名称}_route_network.json
 {路线名称}_route_network_research.md
+{路线名称}_track_manifest.json
+{路线名称}_route_network_overlay.gpx
+{路线名称}_gpx_qc.json
 ```
 
-JSON 按 `scripts/data_model.py` 的 `RouteNetwork` 结构保存。用 `scripts/route_network.py` 计算时间和截止点，并运行结构校验。Markdown 从同一 JSON 展开，至少呈现路网总览、对象状态、主线、下撤线、车辆点、GPX 时间样本、Decision/Cut-off、图片、证据矩阵和待核实清单。
+JSON 按 `scripts/data_model.py` 的 `RouteNetwork` 结构保存。用 `scripts/route_network.py` 计算时间和截止点，并运行结构校验；用 `scripts/gpx_network.py` 从轨迹清单生成叠加 GPX 和质量报告。Markdown 从同一 JSON 展开，至少呈现路网总览、对象状态、主线、下撤线、车辆点、GPX 时间样本、轨迹文件来源与质量、Decision/Cut-off、图片、证据矩阵和待核实清单。
 
 ---
 
