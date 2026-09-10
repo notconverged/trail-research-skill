@@ -22,12 +22,12 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 - **活动备案表** (.docx) — 社团活动审批备案表（仅包含一至五节主干内容，不要求严格格式）
 - **风险预案** (.xlsx) — 风险分析矩阵表格
 - **JSON 数据文件** (.json) — 结构化路线数据，供脚本生成 .docx/.xlsx 使用
-- **单路线路网报告** (.md + .json) — 节点—路段网络、GPX 来源、下撤路线、车辆点、决策点、截止点与证据状态
+- **单路线路网交付物** (.md + .gpx) — Markdown 说明主线、全部候选下撤、路况、爬升、Decision/Cut-off 与原始来源；GPX 显示对应的主线、下撤轨迹和关键点
 
 **输出目录约定：**
-所有交付文件（.md / .json / .docx / .xlsx）统一保存到用户当前工作目录下的 `{路线或活动名称}/` 文件夹中。例如：`./北灵山一日徒步/`。Phase 3 开始时即创建该文件夹。
+所有交付文件（.md / .json / .gpx / .docx / .xlsx）统一保存到用户当前工作目录下的 `{路线或活动名称}/` 文件夹中。例如：`./北灵山一日徒步/`。Phase 3 开始时即创建该文件夹。
 
-所有 .docx/.xlsx 文件通过 `scripts/` 目录下的 Python 脚本生成，共享同一个 JSON 数据文件。调研报告由 Agent 在 Phase 3 直接撰写输出。路网分析以 JSON 为唯一结构化数据源，Markdown 是供人工审阅的视图。
+所有 .docx/.xlsx/路网 .gpx 文件通过 `scripts/` 目录下的 Python 脚本生成，共享同一个 JSON 数据文件。调研报告由 Agent 在 Phase 3 直接撰写输出。路网分析以 JSON 为唯一结构化数据源，Markdown 和 GPX 是相互对应的审阅视图。
 
 ## 四种运行模式
 
@@ -47,7 +47,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 
 ### 模式 D：单路线 Route Network Research
 
-当用户说"只研究这一条路线的路网""分析主线和下撤线""建立决策点和截止点""核实关键岔口和车辆点"等，执行必要的 Phase 1、Phase 3 信息搜集和完整 Phase 4。产出独立的 `{路线名称}_route_network.json` 与 `{路线名称}_route_network_research.md`，不生成领队计划、备案表或风险预案，也不覆盖已有综合调研报告。
+当用户说"只研究这一条路线的路网""分析主线和下撤线""建立决策点和截止点""核实关键岔口和车辆点"等，执行必要的 Phase 1、Phase 3 信息搜集和完整 Phase 4。交付独立的 `{路线名称}_route_network_research.md` 与 `{路线名称}_route_network.gpx`；结构化 JSON 作为两者的共同数据源一并保留。不生成领队计划、备案表或风险预案，也不覆盖已有综合调研报告。
 
 **判断原则：** 如果不确定用户意图，默认使用模式 A（完整流程），并在 Phase 1 时确认范围。明确要求路线网络、Decision Point 或 Cut-off Point 时优先模式 D。
 
@@ -120,7 +120,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 
 示例：`./北灵山一日徒步/` 或 `./西四胡同CityWalk/`
 
-所有 Phase 3-6 产出的文件（.md / .json / .docx / .xlsx）均保存到此文件夹中。
+所有 Phase 3-6 产出的文件（.md / .json / .gpx / .docx / .xlsx）均保存到此文件夹中。
 
 ### 3.1 核心产出：徒步线路调研报告
 
@@ -285,6 +285,16 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, AskUser
 
 不要把一条热门轨迹直接视为标准线路。先建立候选网络，再逐段验证坐标、方向、里程、爬升、路况和通行状态。
 
+轨迹来源按以下顺序选取并在报告、JSON 和 GPX 中保留顺序：
+
+1. 组织方自录且具备踏勘记录的轨迹；
+2. 两步路用户上传轨迹；同一层级按 `recorded_at` 从新到旧排列，缺记录日期时按 `uploaded_at`；
+3. 六只脚等国内轨迹平台；
+4. Wikiloc、AllTrails 等外部轨迹平台；
+5. OSM、地图手工点位或文字推定，只用于补缺并保持 `Candidate`。
+
+用户指定“两步路优先”时，在线轨迹必须先检索和提取两步路，再使用外部平台补充；不得因为外部平台更易下载而把它列为主来源。每条来源都要保留平台、轨迹 ID、记录/上传/检索日期、原链接、适用路段和差异。时间未知的来源不得伪造排序日期。
+
 ### 4.2 分开保存验证成熟度与开放状态
 
 整线、节点、路段和车辆点分别保存：
@@ -310,18 +320,30 @@ Decision Point 必须位于有真实分支的节点。Cut-off Point 按以下关
 
 为关键岔口、营地、风险点和车辆点建立图片索引，保存来源、拍摄/检索日期、方向、可见地物和复用状态。小红书等第三方图片默认只链接原帖，不下载或复制。网络图片不能提升为 `Field Verified`。
 
+优先提取两步路轨迹中的带位置路标照片，并关联到对应 `node_id`。GPX 对应 waypoint 使用 `<link>` 保存可访问的图片直链；没有稳定直链时链接两步路轨迹原页或标注原页。不得为满足“有图片”而复制受限图片、绕过登录或把无坐标照片绑定到具体岔口。
+
 每项路线判断都引用证据 ID，并记录来源形成日期和检索日期。无法交叉验证的内容保留为 `Candidate` 或 `Unknown`，进入待人工核实清单。
 
 ### 4.5 产出与校验
 
-在活动输出文件夹中新建，不覆盖综合报告：
+在活动输出文件夹中新建，不覆盖综合报告。对用户必须交付 Markdown 和 GPX；JSON 是二者的共同结构化数据源：
 
 ```text
 {路线名称}_route_network.json
 {路线名称}_route_network_research.md
+{路线名称}_route_network.gpx
 ```
 
-JSON 按 `scripts/data_model.py` 的 `RouteNetwork` 结构保存。用 `scripts/route_network.py` 计算时间和截止点，并运行结构校验。Markdown 从同一 JSON 展开，至少呈现路网总览、对象状态、主线、下撤线、车辆点、GPX 时间样本、Decision/Cut-off、图片、证据矩阵和待核实清单。
+JSON 按 `scripts/data_model.py` 的 `RouteNetwork` 结构保存。用 `scripts/route_network.py` 计算时间和截止点，并运行结构校验。Markdown 从同一 JSON 展开，至少呈现路网总览、对象状态、主线、全部候选下撤线、车辆点、GPX 时间样本、Decision/Cut-off、区间路况与爬升、图片、证据矩阵、两步路/小红书原链接和待核实清单。
+
+用 `scripts/route_network_gpx.py {路线名称}_route_network.json {路线名称}_route_network.gpx` 生成 GPX。GPX 必须满足：
+
+- `MAIN` 是完整主线；每条候选下撤使用独立的 `BAILOUT-*` track，不得只放一个“下撤点”而缺少下撤几何；
+- Markdown 中出现的下撤点、下撤出口、关键点、车辆点和 Decision/Cut-off Point 都有同 ID waypoint；
+- Decision waypoint 显示计划到达区间、截止时间、继续主线/下撤路段、触发条件和统一动作；
+- 每个 track segment 保存路段 ID、里程、爬升下降、计划时间区间、路况和按优先级排列的来源链接；
+- 有合规且带位置的两步路路标照片时添加图片链接；没有时不影响 GPX 生成，并在 Markdown 标为待补；
+- 任何主线或下撤路段缺少可解析几何时，脚本必须报错，不能用节点间直线代替。
 
 ---
 
@@ -471,5 +493,5 @@ python "$SKILL_DIR/generate_registration_form.py" "$DATA_FILE" "$OUTPUT_DIR/{活
 - **尊重版权：** 配图标注来源，轨迹注明出处
 - **天气用 Windy/莉景：** 不要用系统天气软件查山区天气
 - **结构化数据是唯一数据源：** 调研 Markdown 用于审阅；路网状态、时间和证据以 JSON 为准，后续报告与正式文件不得维护相互冲突的数据
-- **输出统一管理：** 所有产出文件（.md / .json / .docx / .xlsx）必须放在同一活动文件夹中
+- **输出统一管理：** 所有产出文件（.md / .json / .gpx / .docx / .xlsx）必须放在同一活动文件夹中
 - **坐标可搜索：** 起终点坐标必须能在地图应用中直接搜索定位，不能只写模糊的地名

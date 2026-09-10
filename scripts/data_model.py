@@ -36,6 +36,14 @@ class CoordinateInfo:
 
 
 @dataclass
+class GeoPoint:
+    lat: float = 0.0
+    lon: float = 0.0
+    elevation_m: float = 0.0
+    time: str = ""
+
+
+@dataclass
 class EvidenceReference:
     evidence_id: str = ""
     title: str = ""
@@ -74,6 +82,13 @@ class TrackSource:
     elapsed_time_hours: float = 0.0
     gpx_available: bool = False
     gpx_checksum: str = ""
+    source_priority: int = 0       # 0=按平台规则自动排序；较小值优先
+    priority_basis: str = ""
+    original_file_path: str = ""
+    original_file_sha256: str = ""
+    source_format: str = ""
+    coordinate_system: str = ""
+    waypoint_photo_count: int = 0
     applies_to_edge_ids: list[str] = field(default_factory=list)
     notes: str = ""
 
@@ -126,6 +141,8 @@ class RouteNode:
     node_types: list[str] = field(default_factory=list)
     coordinate: CoordinateInfo = field(default_factory=CoordinateInfo)
     field_identification: str = ""
+    planned_arrival_window: str = ""
+    signal_summary: str = ""
     state: VerificationState = field(default_factory=VerificationState)
     image_refs: list[str] = field(default_factory=list)
 
@@ -138,9 +155,12 @@ class RouteEdge:
     name: str = ""
     route_role: str = "main"    # main / bailout / alternate / access
     directionality: str = "both"
+    gpx_route_id: str = "MAIN"  # MAIN 或 BAILOUT-xx；同一路线的边使用同一 ID
     distance_km: float = 0.0
     elevation_gain_m: int = 0
     elevation_loss_m: int = 0
+    condition_summary: str = ""
+    geometry_points: list[GeoPoint] = field(default_factory=list)
     difficulty: EdgeDifficulty = field(default_factory=EdgeDifficulty)
     time_estimate: TimeEstimate = field(default_factory=TimeEstimate)
     state: VerificationState = field(default_factory=VerificationState)
@@ -169,6 +189,7 @@ class DecisionPoint:
     main_edge_ids: list[str] = field(default_factory=list)
     bailout_edge_ids: list[str] = field(default_factory=list)
     trigger_conditions: list[str] = field(default_factory=list)
+    planned_arrival_window: str = ""
     decision_action: str = ""
     state: VerificationState = field(default_factory=VerificationState)
     notes: str = ""
@@ -193,6 +214,8 @@ class ImageEvidence:
     image_id: str = ""
     node_id: str = ""
     source_url: str = ""
+    direct_image_url: str = ""
+    track_source_id: str = ""
     source_platform: str = ""
     author: str = ""
     captured_at: str = ""
@@ -454,6 +477,10 @@ class TrailResearchData:
             edge.difficulty = _dict_to_dataclass(EdgeDifficulty, edge_raw.get("difficulty", {}))
             edge.time_estimate = _dict_to_dataclass(TimeEstimate, edge_raw.get("time_estimate", {}))
             edge.state = _dict_to_dataclass(VerificationState, edge_raw.get("state", {}))
+            edge.geometry_points = [
+                _dict_to_dataclass(GeoPoint, item)
+                for item in edge_raw.get("geometry_points", [])
+            ]
             route_network.edges.append(edge)
         route_network.track_sources = [
             _dict_to_dataclass(TrackSource, item)
